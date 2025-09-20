@@ -190,17 +190,14 @@ function buildIcsWorkshop() {
 ========================= */
 // Reemplaza la firma y uso de sendMail para aceptar bcc:
 async function sendMail({ to, bcc, subject, html, icsBuffer }) {
-  const host = process.env.SMTP_HOST;
-  const port = Number(process.env.SMTP_PORT || 465);
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const from = process.env.MAIL_FROM || user;
 
   if (!host || !user || !pass) throw new Error('SMTP faltante');
 
-  const transporter = nodemailer.createTransport({
-    host, port, secure: port === 465, auth: { user, pass }
-  });
+  const DEBUG = process.env.SMTP_DEBUG === '1';
 
   const attachments = icsBuffer ? [{
     filename: 'apelles-taller.ics',
@@ -208,7 +205,47 @@ async function sendMail({ to, bcc, subject, html, icsBuffer }) {
     contentType: 'text/calendar; charset=utf-8; method=PUBLISH'
   }] : [];
 
-  return transporter.sendMail({ from, to, bcc, subject, html, attachments });
+  const trySend = async (port, secure) => {
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,                  // true => 465 SSL; false => 587 STARTTLS
+      auth: { user, pass },
+      requireTLS: !secure,     // fuerza STARTTLS en 587
+      logger: DEBUG,
+      debug: DEBUG,
+      connectionTimeout: 15000,
+      greetingTimeout: 8000,
+      socketTimeout: 20000,
+      tls: { servername: host } // SNI correcto (útil en algunos hosts)
+    });
+
+    if (DEBUG) {
+      try {
+        await transporter.verify();
+        console.log(`[SMTP] verify() OK en ${host}:${port} secure=${secure}`);
+      } catch (e) {
+        console.warn(`[SMTP] verify() FALLÓ en ${host}:${port}`, e?.message);
+      }
+    }
+
+    return transporter.sendMail({ from, to, bcc, subject, html, attachments });
+  };
+
+  const firstPort = Number(process.env.SMTP_PORT || 465);
+  const firstSecure = firstPort === 465;
+
+  try {
+    // 1) intento con el puerto configurado (465 por defecto)
+    return await trySend(firstPort, firstSecure);
+  } catch (e) {
+    const isConn = e?.code === 'ETIMEDOUT' || e?.code === 'ECONNECTION' || e?.command === 'CONN';
+    if (!isConn) throw e;
+
+    console.warn('[SMTP] Primer intento falló (', e?.code || e?.message, ') → reintento en 587 STARTTLS …');
+    // 2) retry en 587 STARTTLS
+    return await trySend(587, false);
+  }
 }
 
 /* =========================
