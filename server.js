@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
+const SKIP_EMAIL = (process.env.SKIP_EMAIL === '1' || process.env.SKIP_EMAIL === 'true');
 
 const app = express();
 
@@ -210,15 +211,6 @@ async function sendMail({ to, bcc, subject, html, icsBuffer }) {
   return transporter.sendMail({ from, to, bcc, subject, html, attachments });
 }
 
-if (!SKIP_EMAIL) {
-  await sendMail({ to: email, bcc: ['julio@wearewad.com','perla@wearewad.com'],
-    subject: process.env.MAIL_SUBJECT || 'Tu boleto — Taller de Óleo (Apelles Pro)',
-    html, icsBuffer: Buffer.from(ics, 'utf8')
-  });
-} else {
-  console.log('[INFO] SKIP_EMAIL=1 → no se envía correo.');
-}
-
 /* =========================
    Endpoints
 ========================= */
@@ -269,13 +261,17 @@ app.post('/register', async (req, res) => {
     }
 
     // Enviar correo (con BCC a WAD)
-    await sendMail({
-      to: email,
-      bcc: ['julio@wearewad.com', 'perla@wearewad.com'],
-      subject: process.env.MAIL_SUBJECT || 'Tu boleto — Taller de Óleo (Apelles Pro)',
-      html,
-      icsBuffer: Buffer.from(ics, 'utf8')
-    });
+    if (!SKIP_EMAIL) {
+  await sendMail({
+    to: email,
+    bcc: ['julio@wearewad.com', 'perla@wearewad.com'],
+    subject: process.env.MAIL_SUBJECT || 'Tu boleto — Taller de Óleo (Apelles Pro)',
+    html,
+    icsBuffer: Buffer.from(ics, 'utf8')
+  });
+    } else {
+  console.log('[MAIL] SKIP_EMAIL=1 → no se envía correo (prueba).');
+  }
 
     res.json({ ok:true, saved:!!saved, message:'Registro exitoso. Te enviamos tu boleto y .ics por correo.' });
   } catch (err) {
