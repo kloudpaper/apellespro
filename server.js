@@ -261,7 +261,7 @@ app.post('/register', async (req, res) => {
     }
 
     // Enviar correo (con BCC a WAD)
-    if (!SKIP_EMAIL) {
+  
   await sendMail({
     to: email,
     bcc: ['julio@wearewad.com', 'perla@wearewad.com'],
@@ -269,9 +269,7 @@ app.post('/register', async (req, res) => {
     html,
     icsBuffer: Buffer.from(ics, 'utf8')
   });
-    } else {
-  console.log('[MAIL] SKIP_EMAIL=1 → no se envía correo (prueba).');
-  }
+ 
 
     res.json({ ok:true, saved:!!saved, message:'Registro exitoso. Te enviamos tu boleto y .ics por correo.' });
   } catch (err) {
