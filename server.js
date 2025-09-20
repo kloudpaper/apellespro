@@ -189,16 +189,56 @@ function buildIcsWorkshop() {
    Mailer
 ========================= */
 // Reemplaza la firma y uso de sendMail para aceptar bcc:
+// ⬇️ Reemplaza tu sendMail por esta (deja la firma igual)
 async function sendMail({ to, bcc, subject, html, icsBuffer }) {
+  // 1) Si hay RESEND_API_KEY, usa la API HTTPS (evita SMTP bloqueado)
+  if (process.env.RESEND_API_KEY) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from   = process.env.MAIL_FROM; // Debe ser un remitente verificado en Resend
+    if (!from) throw new Error('MAIL_FROM requerido para Resend');
+
+    const attachments = [];
+    if (icsBuffer) {
+      attachments.push({
+        filename: 'apelles-taller.ics',
+        content: icsBuffer.toString('base64'),           // base64
+        content_type: 'text/calendar; charset=utf-8'     // opcional
+      });
+    }
+
+    // Node 18+ tiene fetch global
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(to) ? to : [to],
+        bcc: bcc && bcc.length ? bcc : undefined,
+        subject,
+        html,
+        attachments
+      })
+    });
+
+    if (!resp.ok) {
+      let msg = `Resend HTTP ${resp.status}`;
+      try { const j = await resp.json(); msg = j?.error?.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    return; // enviado OK por API
+  }
+
+  // 2) Sin RESEND_API_KEY: intenta SMTP (tu lógica actual con retry 465→587)
   const host = process.env.SMTP_HOST || 'smtp.gmail.com';
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
   const from = process.env.MAIL_FROM || user;
-
   if (!host || !user || !pass) throw new Error('SMTP faltante');
 
   const DEBUG = process.env.SMTP_DEBUG === '1';
-
   const attachments = icsBuffer ? [{
     filename: 'apelles-taller.ics',
     content: icsBuffer,
@@ -207,43 +247,27 @@ async function sendMail({ to, bcc, subject, html, icsBuffer }) {
 
   const trySend = async (port, secure) => {
     const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,                  // true => 465 SSL; false => 587 STARTTLS
-      auth: { user, pass },
-      requireTLS: !secure,     // fuerza STARTTLS en 587
-      logger: DEBUG,
-      debug: DEBUG,
-      connectionTimeout: 15000,
-      greetingTimeout: 8000,
-      socketTimeout: 20000,
-      tls: { servername: host } // SNI correcto (útil en algunos hosts)
+      host, port, secure, auth: { user, pass },
+      requireTLS: !secure, logger: DEBUG, debug: DEBUG,
+      connectionTimeout: 15000, greetingTimeout: 8000, socketTimeout: 20000,
+      tls: { servername: host }
     });
-
     if (DEBUG) {
-      try {
-        await transporter.verify();
-        console.log(`[SMTP] verify() OK en ${host}:${port} secure=${secure}`);
-      } catch (e) {
-        console.warn(`[SMTP] verify() FALLÓ en ${host}:${port}`, e?.message);
-      }
+      try { await transporter.verify(); console.log(`[SMTP] verify() OK ${host}:${port}`); }
+      catch (e) { console.warn(`[SMTP] verify() FALLÓ ${host}:${port}`, e?.message); }
     }
-
     return transporter.sendMail({ from, to, bcc, subject, html, attachments });
   };
 
-  const firstPort = Number(process.env.SMTP_PORT || 465);
+  const firstPort   = Number(process.env.SMTP_PORT || 465);
   const firstSecure = firstPort === 465;
 
   try {
-    // 1) intento con el puerto configurado (465 por defecto)
     return await trySend(firstPort, firstSecure);
   } catch (e) {
     const isConn = e?.code === 'ETIMEDOUT' || e?.code === 'ECONNECTION' || e?.command === 'CONN';
     if (!isConn) throw e;
-
-    console.warn('[SMTP] Primer intento falló (', e?.code || e?.message, ') → reintento en 587 STARTTLS …');
-    // 2) retry en 587 STARTTLS
+    console.warn('[SMTP] Primer intento falló → reintento en 587 STARTTLS…');
     return await trySend(587, false);
   }
 }
