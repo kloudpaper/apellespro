@@ -1,11 +1,11 @@
 // server.js — Apelles Taller
 require('dotenv').config();
 
+const { randomUUID } = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
-const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 
@@ -170,7 +170,8 @@ function buildIcsWorkshop() {
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
-    `UID:${uuidv4()}@apelles-taller`,
+    //`UID:${uuidv4()}@apelles-taller`,
+    `UID:${randomUUID()}@apelles-taller`,
     `DTSTAMP:${nowUTC}`,
     `DTSTART:${fmtUTC(WORKSHOP.startISO)}`,
     `DTEND:${fmtUTC(WORKSHOP.endISO)}`,
@@ -229,7 +230,12 @@ app.post('/register', async (req, res) => {
     }
 
     // Folio e ICS
-    const qid = uuidv4().slice(0,8).toUpperCase();
+   // const qid = uuidv4().slice(0,8).toUpperCase();
+   // antes:
+   // const qid = uuidv4().slice(0,8).toUpperCase();
+
+   // ahora:
+    const qid = randomUUID().slice(0,8).toUpperCase(); // folio corto
     const ics = buildIcsWorkshop();
 
     // QR
