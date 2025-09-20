@@ -21,7 +21,7 @@
   <div id="preview">Haz clic en “Previsualizar JSON”…</div>
 
   <script>
-    const API_BASE = 'apellespro-production.up.railway.app'; // mismo host que uses en app.js
+    const API_BASE = 'https://apellespro-production.up.railway.app'; // mismo host que uses en app.js
 
     document.getElementById('btnJson').onclick = async () => {
       const res = await fetch(`${API_BASE}/registrations.json`, { cache: 'no-store' });

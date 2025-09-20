@@ -1,5 +1,5 @@
 // ====== CONFIGURA AQUÍ tu API ======
-const API_BASE = 'apellespro-production.up.railway.app'; // cámbialo si usas otro dominio
+const API_BASE = 'https://apellespro-production.up.railway.app'; // cámbialo si usas otro dominio
 
 const form = document.getElementById('regForm');
 const statusEl = document.getElementById('status');
