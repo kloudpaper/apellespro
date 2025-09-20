@@ -9,16 +9,6 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 
-console.log('[CFG] TICKET_PATH =', TICKET_PATH);
-try {
-  const exists = require('fs').existsSync(TICKET_PATH);
-  console.log('[CFG] TICKET exists? ->', exists);
-  if (!exists) {
-    console.error('[ERROR] ticket no encontrado en', TICKET_PATH);
-  }
-} catch (e) {
-  console.error('[ERROR] comprobando ticket:', e);
-}
 
 const app = express();
 
