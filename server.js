@@ -1,6 +1,9 @@
 // server.js — Apelles Taller
 require('dotenv').config();
 
+console.log('[CFG] MAIL_MODE =', process.env.RESEND_API_KEY ? 'resend_api' : 'smtp');
+
+
 const { randomUUID } = require('crypto');
 const express = require('express');
 const cors = require('cors');
