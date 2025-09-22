@@ -2,7 +2,7 @@
 require('dotenv').config();
 
 console.log('[CFG] MAIL_MODE =', process.env.RESEND_API_KEY ? 'resend_api' : 'smtp');
-
+console.log('[CFG] MAIL_FROM =', process.env.MAIL_FROM);
 
 const { randomUUID } = require('crypto');
 const express = require('express');
